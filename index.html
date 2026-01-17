@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>רחפן FPV - צפיפות צורות מוגברת</title>
+    <title>רחפן FPV - גרפיקה משופרת</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -19,11 +19,26 @@
             position: relative;
             width: 800px;
             height: 600px;
-            background: radial-gradient(circle, #0f172a 0%, #020617 100%);
-            border: 2px solid #334155;
-            border-radius: 4px;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            border: 4px solid #1e293b;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 0 0 100px rgba(0,0,0,0.8);
+            border-radius: 8px;
             overflow: hidden;
         }
+        
+        /* אפקט סריקה CRT עתידני */
+        #gameContainer::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 15;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
         #gameCanvas { display: block; width: 100%; height: 100%; }
         
         #osd {
@@ -36,8 +51,9 @@
             color: #00ff00;
             font-size: 18px;
             pointer-events: none;
-            text-shadow: 1px 1px 2px #000;
-            z-index: 5;
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
+            z-index: 20;
+            letter-spacing: 1px;
         }
 
         .overlay {
@@ -46,19 +62,30 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(2, 6, 23, 0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: #00ff00;
-            z-index: 10;
+            z-index: 30;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
         }
 
         #menu { display: flex; }
         #gameOver { display: none; }
 
-        h1, h2 { margin-bottom: 20px; letter-spacing: 4px; text-align: center; }
+        h1 { 
+            font-size: 48px;
+            margin-bottom: 20px; 
+            letter-spacing: 8px; 
+            text-align: center;
+            background: linear-gradient(to bottom, #00ff00, #008800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.3));
+        }
+
         .settings-group {
             margin-bottom: 30px;
             text-align: center;
@@ -66,25 +93,30 @@
         .difficulty-btns {
             display: flex;
             gap: 15px;
-            margin-top: 10px;
+            margin-top: 15px;
         }
         .btn {
-            padding: 10px 20px;
-            background: transparent;
+            padding: 12px 24px;
+            background: rgba(0, 255, 0, 0.05);
             color: #00ff00;
             border: 1px solid #00ff00;
             cursor: pointer;
             font-family: inherit;
-            transition: all 0.2s;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         .btn:hover, .btn.active {
             background: #00ff00;
             color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
         }
         #startBtn {
             font-size: 24px;
-            padding: 15px 40px;
+            padding: 15px 50px;
             margin-top: 20px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -93,29 +125,29 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="osd">
-            <div>גובה: <span id="altitude">0</span>m</div>
-            <div>מהירות: <span id="speedDisplay">0</span> km/h</div>
-            <div>ניקוד: <span id="score">0</span></div>
+            <div>ALT: <span id="altitude">0</span>m</div>
+            <div>SPD: <span id="speedDisplay">0</span> km/h</div>
+            <div>SCR: <span id="score">0</span></div>
         </div>
 
         <div id="menu" class="overlay">
-            <h1>FPV SIMULATOR</h1>
+            <h1>FPV NEON</h1>
             <div class="settings-group">
-                <p>בחר רמת קושי (צפיפות מוגברת):</p>
+                <p>SELECT DIFFICULTY PROTOCOL</p>
                 <div class="difficulty-btns">
-                    <button class="btn" onclick="setDifficulty('easy', this)">קל (75 קמ"ש)</button>
-                    <button class="btn active" onclick="setDifficulty('medium', this)">בינוני (125 קמ"ש)</button>
-                    <button class="btn" onclick="setDifficulty('hard', this)">קשה (150 קמ"ש)</button>
+                    <button class="btn" onclick="setDifficulty('easy', this)">EASY (75 km/h)</button>
+                    <button class="btn active" onclick="setDifficulty('medium', this)">MEDIUM (125 km/h)</button>
+                    <button class="btn" onclick="setDifficulty('hard', this)">HARD (150 km/h)</button>
                 </div>
             </div>
-            <button id="startBtn" class="btn" onclick="startGame()">הפעל מנועים</button>
+            <button id="startBtn" class="btn" onclick="startGame()">INITIATE FLIGHT</button>
         </div>
 
         <div id="gameOver" class="overlay">
-            <h2>אובדן אות</h2>
-            <p>זוהתה התרסקות.</p>
-            <p style="margin: 15px 0;">ניקוד סופי: <span id="finalScore">0</span></p>
-            <button class="btn" onclick="location.reload()">אתחול מערכת</button>
+            <h2 style="font-size: 36px; color: #ff0044;">SIGNAL LOST</h2>
+            <p style="margin-top: 10px;">CRASH DETECTED AT SECTOR X</p>
+            <p style="margin: 20px 0; font-size: 24px;">DATA COLLECTED: <span id="finalScore" style="color: #fff;">0</span></p>
+            <button class="btn" onclick="location.reload()">REBOOT SYSTEM</button>
         </div>
     </div>
 
@@ -137,16 +169,18 @@
             spawnRate: 150,    
             drone: {
                 x: 150, y: 300,
-                size: 16,
+                size: 18,
                 vx: 0, vy: 0,
                 baseAcc: 0.25,
                 friction: 0.94
             },
             obstacles: [],
-            dust: Array.from({length: 60}, () => ({
-                x: Math.random() * 800,
-                y: Math.random() * 600,
-                z: Math.random() * 2 + 0.5
+            // שובלים וחלקיקים משופרים
+            dust: Array.from({length: 80}, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                z: Math.random() * 3 + 1,
+                opacity: Math.random() * 0.5 + 0.2
             }))
         };
 
@@ -166,21 +200,18 @@
             
             switch(difficulty) {
                 case 'easy':
-                    // צפיפות מוגברת לקל - מרווח קטן יותר מבעבר
                     gameState.minThrust = 1;
                     gameState.maxThrust = 4.5; 
                     gameState.spawnRate = 140; 
                     gameState.drone.baseAcc = 0.25;
                     break;
                 case 'medium':
-                    // צפיפות מוגברת לבינוני - אתגר משמעותי
                     gameState.minThrust = 2;
                     gameState.maxThrust = 7.5; 
                     gameState.spawnRate = 85; 
                     gameState.drone.baseAcc = 0.4;
                     break;
                 case 'hard':
-                    // צפיפות קיצונית לקשה - כמעט קיר של צורות
                     gameState.minThrust = 3;
                     gameState.maxThrust = 9.5; 
                     gameState.spawnRate = 45; 
@@ -198,11 +229,11 @@
             return {
                 type: types[Math.floor(Math.random() * types.length)],
                 x: canvas.width + 200,
-                y: Math.random() * (canvas.height - 100) + 50,
-                size: 30 + Math.random() * 50,
+                y: Math.random() * (canvas.height - 150) + 75,
+                size: 35 + Math.random() * 55,
                 angle: 0,
-                rotSpeed: (Math.random() - 0.5) * 0.08,
-                hue: Math.random() * 360
+                rotSpeed: (Math.random() - 0.5) * 0.1,
+                hue: Math.random() * 60 + 100 // גוונים ניאוניים (ירוק-כחול)
             };
         }
 
@@ -212,12 +243,11 @@
             const elapsedMinutes = (Date.now() - gameState.startTime) / 60000;
             const d = gameState.drone;
 
-            const dynamicMin = gameState.minThrust + (elapsedMinutes * 1.0);
-            const dynamicMax = gameState.maxThrust + (elapsedMinutes * 1.5);
-            const currentAcc = d.baseAcc + (elapsedMinutes * 0.05);
+            const dynamicMin = gameState.minThrust + (elapsedMinutes * 0.8);
+            const dynamicMax = gameState.maxThrust + (elapsedMinutes * 1.2);
+            const currentAcc = d.baseAcc + (elapsedMinutes * 0.04);
             
-            // הצפיפות גדלה עם הזמן
-            const currentSpawnRate = Math.max(25, gameState.spawnRate / (1 + elapsedMinutes * 1.2));
+            const currentSpawnRate = Math.max(25, gameState.spawnRate / (1 + elapsedMinutes * 1.0));
 
             if (keys['w'] || keys['arrowup']) d.vy -= currentAcc;
             if (keys['s'] || keys['arrowdown']) d.vy += currentAcc;
@@ -230,16 +260,19 @@
             d.vy *= d.friction;
             d.y += d.vy;
             
-            const targetX = 100 + (gameState.currentThrust * 8);
+            const targetX = 120 + (gameState.currentThrust * 10);
             d.x += (targetX - d.x) * 0.05;
-            d.y = Math.max(25, Math.min(canvas.height - 25, d.y));
+            d.y = Math.max(40, Math.min(canvas.height - 40, d.y));
 
             const kmh = Math.floor(10 + (gameState.currentThrust * 15));
-            const worldMoveSpeed = 1.0 + (gameState.currentThrust * 1.2);
+            const worldMoveSpeed = 1.5 + (gameState.currentThrust * 1.4);
 
             gameState.dust.forEach(p => {
-                p.x -= worldMoveSpeed * 0.8;
-                if (p.x < 0) p.x = canvas.width;
+                p.x -= worldMoveSpeed * p.z * 0.5;
+                if (p.x < 0) {
+                    p.x = canvas.width;
+                    p.y = Math.random() * canvas.height;
+                }
             });
 
             if (gameState.obstacles.length === 0 || 
@@ -255,8 +288,7 @@
                 const dy = d.y - obs.y;
                 const distance = Math.sqrt(dx*dx + dy*dy);
                 
-                // collision check
-                if (distance < d.size + obs.size * 0.35) gameOver();
+                if (distance < d.size + obs.size * 0.4) gameOver();
 
                 if (obs.x < -200) {
                     gameState.obstacles.splice(i, 1);
@@ -285,17 +317,6 @@
                     }
                     ctx.closePath();
                     break;
-                case 'octagon':
-                    for(let j=0; j<8; j++) {
-                        let a = j * Math.PI / 4;
-                        ctx.lineTo(Math.cos(a)*s, Math.sin(a)*s);
-                    }
-                    ctx.closePath();
-                    break;
-                case 'diamond':
-                    ctx.moveTo(0, -s*1.2); ctx.lineTo(s, 0); ctx.lineTo(0, s*1.2); ctx.lineTo(-s, 0);
-                    ctx.closePath();
-                    break;
                 case 'star':
                     for(let i=0; i<10; i++) {
                         let r = i % 2 === 0 ? s : s/2.5;
@@ -304,54 +325,51 @@
                     }
                     ctx.closePath();
                     break;
+                case 'diamond':
+                    ctx.moveTo(0, -s*1.2); ctx.lineTo(s, 0); ctx.lineTo(0, s*1.2); ctx.lineTo(-s, 0); ctx.closePath();
+                    break;
                 case 'ring':
                     ctx.arc(0, 0, s, 0, Math.PI*2);
-                    ctx.moveTo(s*0.72, 0);
-                    ctx.arc(0, 0, s*0.72, 0, Math.PI*2, true);
-                    break;
-                case 'plus':
-                    ctx.moveTo(-s, -s/4); ctx.lineTo(-s/4, -s/4); ctx.lineTo(-s/4, -s);
-                    ctx.lineTo(s/4, -s); ctx.lineTo(s/4, -s/4); ctx.lineTo(s, -s/4);
-                    ctx.lineTo(s, s/4); ctx.lineTo(s/4, s/4); ctx.lineTo(s/4, s);
-                    ctx.lineTo(-s/4, s); ctx.lineTo(-s/4, s/4); ctx.lineTo(-s, s/4);
-                    ctx.closePath();
-                    break;
-                case 'arrow':
-                    ctx.moveTo(-s, -s/2); ctx.lineTo(s/4, -s/2); ctx.lineTo(s/4, -s);
-                    ctx.lineTo(s, 0); ctx.lineTo(s/4, s); ctx.lineTo(s/4, s/2);
-                    ctx.lineTo(-s, s/2); ctx.closePath();
-                    break;
-                case 'capsule':
-                    ctx.arc(-s/2, 0, s/2, Math.PI/2, Math.PI*1.5);
-                    ctx.lineTo(s/2, -s/2);
-                    ctx.arc(s/2, 0, s/2, Math.PI*1.5, Math.PI/2);
-                    ctx.closePath();
-                    break;
-                case 'zig':
-                    ctx.moveTo(-s, -s); ctx.lineTo(0, -s/2); ctx.lineTo(-s, 0);
-                    ctx.lineTo(0, s/2); ctx.lineTo(-s, s); ctx.lineTo(s, s);
-                    ctx.lineTo(0, s/2); ctx.lineTo(s, 0); ctx.lineTo(0, -s/2);
-                    ctx.lineTo(s, -s); ctx.closePath();
+                    ctx.moveTo(s*0.7, 0);
+                    ctx.arc(0, 0, s*0.7, 0, Math.PI*2, true);
                     break;
                 default: ctx.strokeRect(-s, -s, obs.size, obs.size); break;
             }
             ctx.stroke();
+            
+            // הוספת מילוי עדין מאוד
+            ctx.globalAlpha = 0.1;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // רקע עם עקבות תנועה קלים (Motion Blur)
+            ctx.fillStyle = "rgba(2, 6, 23, 0.3)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
-            gameState.dust.forEach(p => ctx.fillRect(p.x, p.y, p.z, p.z));
+            // ציור חלקיקי אבק/כוכבים כקווים מהירים
+            gameState.dust.forEach(p => {
+                ctx.strokeStyle = `rgba(0, 255, 0, ${p.opacity})`;
+                ctx.lineWidth = p.z / 2;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.z * 5, p.y);
+                ctx.stroke();
+            });
 
             gameState.obstacles.forEach(obs => {
                 ctx.save();
                 ctx.translate(obs.x, obs.y);
                 ctx.rotate(obs.angle);
-                ctx.strokeStyle = `hsl(${obs.hue}, 85%, 65%)`;
-                ctx.lineWidth = 2.2;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = ctx.strokeStyle;
+                
+                const color = `hsl(${obs.hue}, 100%, 60%)`;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = color;
+                
                 drawShape(ctx, obs);
                 ctx.restore();
             });
@@ -363,34 +381,50 @@
             ctx.save();
             ctx.translate(x, y);
             
-            const tilt = gameState.running ? (gameState.drone.vy * 0.04 + (gameState.currentThrust * 0.01)) : 0;
+            const tilt = gameState.running ? (gameState.drone.vy * 0.05 + (gameState.currentThrust * 0.012)) : 0;
             ctx.rotate(tilt);
             
-            ctx.strokeStyle = "#94a3b8";
-            ctx.lineWidth = 2;
+            // גוף הרחפן
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#00ffcc";
+            ctx.strokeStyle = "#00ffcc";
+            ctx.lineWidth = 3;
+            
+            // שלדה
             ctx.beginPath();
-            ctx.moveTo(-14, -14); ctx.lineTo(14, 14);
-            ctx.moveTo(14, -14); ctx.lineTo(-14, 14);
+            ctx.moveTo(-16, -16); ctx.lineTo(16, 16);
+            ctx.moveTo(16, -16); ctx.lineTo(-16, 16);
             ctx.stroke();
 
-            const propSpeed = gameState.running ? (0.02 + gameState.currentThrust * 0.015) : 0.04;
-
-            [[-14,-14], [14,-14], [-14,14], [14,14]].forEach(([px, py]) => {
-                ctx.fillStyle = "#1e293b";
-                ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2); ctx.fill();
+            // זרועות ומנועים
+            const propSpeed = gameState.running ? (0.05 + gameState.currentThrust * 0.03) : 0.04;
+            [[-16,-16], [16,-16], [-16,16], [16,16]].forEach(([px, py]) => {
+                ctx.fillStyle = "#334155";
+                ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+                
+                // פרופלורים מסתובבים כאפקט טשטוש
                 ctx.save();
                 ctx.translate(px, py);
                 ctx.rotate(Date.now() * propSpeed);
-                ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
-                ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.stroke();
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 12, 2, 0, 0, Math.PI*2);
+                ctx.stroke();
                 ctx.restore();
             });
 
+            // מצלמה/גוף מרכזי
             ctx.fillStyle = "#0f172a";
             ctx.strokeStyle = "#00ff00";
-            ctx.lineWidth = 1;
-            ctx.fillRect(-5, -8, 10, 16);
-            ctx.strokeRect(-5, -8, 10, 16);
+            ctx.lineWidth = 2;
+            ctx.fillRect(-6, -10, 12, 20);
+            ctx.strokeRect(-6, -10, 12, 20);
+            
+            // עדשת מצלמה
+            ctx.fillStyle = "#ff0044";
+            ctx.beginPath(); ctx.arc(4, 0, 2, 0, Math.PI*2); ctx.fill();
+
             ctx.restore();
         }
 
