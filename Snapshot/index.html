@@ -157,26 +157,24 @@
         import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        /** * הגדרות FIREBASE למולטיפלייר (GitHub Pages)
-         * 1. היכנס ל-Firebase Console (console.firebase.google.com)
-         * 2. בחר את הפרויקט שלך -> Project Settings (גלגל שיניים למעלה)
-         * 3. תחת "Your apps", אם אין אפליקציית Web, צור אחת (סמל של </>)
-         * 4. העתק את אובייקט ה-firebaseConfig לכאן:
+        /** * הגדרות FIREBASE למולטיפלייר
+         * עליך להחליף את הערכים למטה בערכים האמיתיים מהפרויקט שלך ב-Firebase Console.
          */
         const manualConfig = {
-            apiKey: "כאן_שמים_את_ה-API_KEY",
-            authDomain: "your-project.firebaseapp.com",
+            apiKey: "כאן_שמים_את_ה-API_KEY_שלך",
+            authDomain: "your-project-id.firebaseapp.com",
             projectId: "your-project-id",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef"
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
         };
 
-        // בדיקה האם המשתמש עדכן את ההגדרות
-        const isConfigured = (cfg) => cfg.apiKey && !cfg.apiKey.includes("כאן_שמים");
+        // פונקציית בדיקה - בודקת אם המשתמש הזין apiKey אמיתי (לא הטקסט ברירת המחדל)
+        const isConfigured = (cfg) => cfg && cfg.apiKey && !cfg.apiKey.includes("כאן_שמים");
 
         let firebaseConfig;
         try {
+            // עדיפות להגדרות המערכת של Canvas, אם לא קיימות משתמשים ב-manualConfig
             firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualConfig;
         } catch(e) {
             firebaseConfig = manualConfig;
@@ -185,14 +183,15 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'fpv-neon-prod';
         
         let app, db, auth;
-        // מנסה לאתחל רק אם ההגדרות נראות תקינות
+        
+        // אתחול Firebase רק אם ההגדרות הוזנו
         if (isConfigured(firebaseConfig)) {
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
             } catch(e) {
-                console.error("Firebase initialization error:", e);
+                console.error("Firebase init failed:", e);
             }
         }
 
@@ -251,7 +250,7 @@
             
             if (!auth) {
                 document.getElementById('statusMsg').innerText = "שגיאת הגדרות Firebase - ערוך את manualConfig בקוד";
-                console.warn("Firebase config is missing or invalid. Check the manualConfig object.");
+                console.warn("Firebase not configured properly. Update 'manualConfig' with your project details.");
                 return;
             }
 
@@ -262,7 +261,7 @@
                     await signInAnonymously(auth);
                 }
             } catch (e) {
-                document.getElementById('statusMsg').innerText = "התחברות נכשלה (וודא ש-Anonymous Auth מופעל ב-Firebase)";
+                document.getElementById('statusMsg').innerText = "שגיאת התחברות (וודא ש-Anonymous Auth פעיל ב-Console)";
                 console.error("Auth error:", e);
                 return;
             }
@@ -271,6 +270,7 @@
             isMultiplayer = true;
             document.getElementById('roomDisplay').innerText = roomCode;
 
+            // נתיב חדרים לפי הכללים: /artifacts/{appId}/public/data/{collectionName}
             const roomRef = collection(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`);
             
             onSnapshot(roomRef, (snapshot) => {
@@ -285,8 +285,8 @@
                     }
                 });
             }, (err) => {
-                console.error("Firestore error (Check Rules):", err);
-                document.getElementById('statusMsg').innerText = "שגיאת הרשאות Firestore";
+                console.error("Firestore error (Check Rules/Path):", err);
+                document.getElementById('statusMsg').innerText = "שגיאת הרשאות במסד הנתונים";
             });
 
             initGame();
