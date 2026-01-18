@@ -157,19 +157,20 @@
         import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        /** * הגדרות FIREBASE עבור GITHUB PAGES 
-         * אם אתה מריץ ב-GitHub, הכנס כאן את האובייקט שקיבלת מה-Firebase Console
+        /** * הגדרות FIREBASE - חשוב מאוד!
+         * עליך להעתיק לכאן את האובייקט שקיבלת מה-Firebase Console (תחת Project Settings)
+         * כדי שהמולטיפלייר יעבוד ב-GitHub Pages.
          */
         const manualConfig = {
-            apiKey: "",
-            authDomain: "",
-            projectId: "",
-            storageBucket: "",
-            messagingSenderId: "",
-            appId: ""
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        // בחירת הגדרות: מהסביבה המקומית או מההגדרות הידניות
+        // בדיקה האם אנחנו בסביבת Canvas או ב-GitHub Pages
         let firebaseConfig;
         try {
             firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualConfig;
@@ -180,12 +181,14 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'fpv-neon-prod';
         
         let app, db, auth;
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch(e) {
-            console.error("Firebase init failed. Check your config.", e);
+        if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+            } catch(e) {
+                console.error("Firebase initialization failed:", e);
+            }
         }
 
         const canvas = document.getElementById('gameCanvas');
@@ -221,7 +224,6 @@
         window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
         window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
 
-        // ניהול תפריט ורמות קושי
         document.querySelectorAll('.diff-btn').forEach(btn => {
             btn.onclick = () => {
                 difficulty = btn.id.replace('diff-', '');
@@ -242,8 +244,9 @@
                 return;
             }
             
-            if (!firebaseConfig.apiKey) {
-                document.getElementById('statusMsg').innerText = "שגיאת הגדרות Firebase";
+            if (!auth) {
+                document.getElementById('statusMsg').innerText = "שגיאת הגדרות Firebase - ערוך את manualConfig";
+                console.error("Firebase not initialized. Fill in your manualConfig object.");
                 return;
             }
 
@@ -282,9 +285,11 @@
             initGame();
         };
 
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-        });
+        if (auth) {
+            onAuthStateChanged(auth, (u) => {
+                user = u;
+            });
+        }
 
         function initGame() {
             document.getElementById('menu').style.display = 'none';
