@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FPV NEON - MULTIPLAYER</title>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -119,54 +116,77 @@
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="osd">
-            <div>ALT: <span id="altitude">0</span>m</div>
-            <div>ROOM: <span id="roomDisplay">-</span></div>
-            <div>SCR: <span id="score">0</span></div>
+            <div>גובה: <span id="altitude">0</span>m</div>
+            <div>חדר: <span id="roomDisplay">-</span></div>
+            <div>ניקוד: <span id="score">0</span></div>
         </div>
-        <div id="antiCampWarning">MOVE UP/DOWN!</div>
+        <div id="antiCampWarning">זוז למעלה/למטה!</div>
 
-        <!-- Start Menu -->
+        <!-- תפריט ראשי -->
         <div id="menu" class="overlay">
             <div class="menu-card">
                 <div class="glitch">FPV NEON</div>
                 <div style="margin-bottom: 20px;">
-                    <p>DIFFICULTY</p>
-                    <button class="btn" onclick="setDiff('easy', this)">EASY</button>
-                    <button class="btn active" onclick="setDiff('normal', this)">NORMAL</button>
-                    <button class="btn" onclick="setDiff('hard', this)">HARD</button>
+                    <p>רמת קושי</p>
+                    <button class="btn diff-btn" id="diff-easy">קל</button>
+                    <button class="btn diff-btn active" id="diff-normal">רגיל</button>
+                    <button class="btn diff-btn" id="diff-hard">קשה</button>
                 </div>
                 <div style="border-top: 1px solid #00ff0055; padding-top: 20px;">
-                    <input type="text" id="roomCode" placeholder="ENTER ROOM CODE">
+                    <input type="text" id="roomCode" placeholder="קוד חדר">
                     <br>
-                    <button class="btn" onclick="startMultiplayer()">JOIN MULTIPLAYER</button>
-                    <button class="btn" onclick="startSinglePlayer()">SOLO FLIGHT</button>
+                    <button class="btn" id="joinMultiBtn">הצטרף למולטיפלייר</button>
+                    <button class="btn" id="startSoloBtn">טיסת סולו</button>
                 </div>
                 <div id="statusMsg" style="margin-top: 10px; font-size: 12px; color: #ff0044;"></div>
             </div>
         </div>
 
-        <!-- Game Over -->
+        <!-- סוף משחק -->
         <div id="gameOver" class="overlay" style="display:none;">
             <div class="menu-card" style="border-color: #ff0044;">
                 <div class="glitch" style="color: #ff0044;">SIGNAL LOST</div>
-                <p>FINAL SCORE: <span id="finalScore">0</span></p>
+                <p>ניקוד סופי: <span id="finalScore">0</span></p>
                 <button class="btn" onclick="location.reload()" style="border-color: #ff0044; color: #ff0044;">REBOOT</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        // Firebase Configuration
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fpv-neon-demo';
-        
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        /** * הגדרות FIREBASE עבור GITHUB PAGES 
+         * אם אתה מריץ ב-GitHub, הכנס כאן את האובייקט שקיבלת מה-Firebase Console
+         */
+        const manualConfig = {
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
+        };
+
+        // בחירת הגדרות: מהסביבה המקומית או מההגדרות הידניות
+        let firebaseConfig;
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualConfig;
+        } catch(e) {
+            firebaseConfig = manualConfig;
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fpv-neon-prod';
+        
+        let app, db, auth;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch(e) {
+            console.error("Firebase init failed. Check your config.", e);
+        }
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -201,49 +221,53 @@
         window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
         window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
 
-        window.setDiff = (level, btn) => {
-            difficulty = level;
-            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        };
+        // ניהול תפריט ורמות קושי
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.onclick = () => {
+                difficulty = btn.id.replace('diff-', '');
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
 
-        // --- Firebase Logic ---
-
-        async function initAuth() {
-            return new Promise((resolve) => {
-                onAuthStateChanged(auth, (u) => {
-                    user = u;
-                    resolve(u);
-                });
-                signInAnonymously(auth);
-            });
-        }
-
-        window.startSinglePlayer = () => {
+        document.getElementById('startSoloBtn').onclick = () => {
             isMultiplayer = false;
             initGame();
         };
 
-        window.startMultiplayer = async () => {
+        document.getElementById('joinMultiBtn').onclick = async () => {
             const code = document.getElementById('roomCode').value.trim().toUpperCase();
             if (!code) {
-                document.getElementById('statusMsg').innerText = "ENTER A CODE";
+                document.getElementById('statusMsg').innerText = "נא להזין קוד חדר";
                 return;
             }
             
-            await initAuth();
-            if (!user) return;
+            if (!firebaseConfig.apiKey) {
+                document.getElementById('statusMsg').innerText = "שגיאת הגדרות Firebase";
+                return;
+            }
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                document.getElementById('statusMsg').innerText = "התחברות נכשלה";
+                return;
+            }
 
             roomCode = code;
             isMultiplayer = true;
             document.getElementById('roomDisplay').innerText = roomCode;
 
-            // Subscribe to room
             const roomRef = collection(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`);
+            
             onSnapshot(roomRef, (snapshot) => {
                 snapshot.docChanges().forEach(change => {
                     const data = change.doc.data();
-                    if (change.doc.id !== user.uid) {
+                    if (user && change.doc.id !== user.uid) {
                         if (change.type === 'removed') {
                             delete otherPlayers[change.doc.id];
                         } else {
@@ -251,16 +275,21 @@
                         }
                     }
                 });
-            }, (err) => console.error(err));
+            }, (err) => {
+                console.error("Firestore error:", err);
+            });
 
             initGame();
         };
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+        });
 
         function initGame() {
             document.getElementById('menu').style.display = 'none';
             document.getElementById('osd').style.display = 'flex';
             
-            // Stats by difficulty
             const settings = {
                 easy: { acc: 0.2, camp: 240, thrust: 3 },
                 normal: { acc: 0.35, camp: 180, thrust: 5 },
@@ -274,7 +303,6 @@
             gameState.running = true;
 
             if (isMultiplayer) {
-                // Random color for this session
                 gameState.drone.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
                 syncPosition();
             }
@@ -285,20 +313,22 @@
         async function syncPosition() {
             if (!gameState.running || !isMultiplayer || !user) return;
             
-            const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`, user.uid);
-            await setDoc(playerDoc, {
-                x: gameState.drone.x,
-                y: gameState.drone.y,
-                vy: gameState.drone.vy,
-                thrust: gameState.drone.thrust,
-                color: gameState.drone.color,
-                lastSeen: Date.now()
-            });
+            try {
+                const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`, user.uid);
+                await setDoc(playerDoc, {
+                    x: gameState.drone.x,
+                    y: gameState.drone.y,
+                    vy: gameState.drone.vy,
+                    thrust: gameState.drone.thrust,
+                    color: gameState.drone.color,
+                    lastSeen: Date.now()
+                });
+            } catch (e) {
+                console.error("Sync error:", e);
+            }
 
-            setTimeout(syncPosition, 100); // 10 FPS sync
+            setTimeout(syncPosition, 100);
         }
-
-        // --- Game Logic ---
 
         function createObstacle() {
             return {
@@ -315,7 +345,6 @@
 
             const d = gameState.drone;
             
-            // Movement
             if (keys['w'] || keys['arrowup']) d.vy -= d.baseAcc;
             if (keys['s'] || keys['arrowdown']) d.vy += d.baseAcc;
             
@@ -323,7 +352,6 @@
             d.y += d.vy;
             d.y = Math.max(40, Math.min(canvas.height - 40, d.y));
 
-            // Anti-camp
             if (Math.abs(d.y - gameState.lastHeight) < 2) gameState.heightTimer++;
             else gameState.heightTimer = 0;
             gameState.lastHeight = d.y;
@@ -336,12 +364,10 @@
                 gameState.heightTimer = 0;
             }
 
-            // World elements
             if (Math.random() < 0.02) gameState.obstacles.push(createObstacle());
 
             gameState.obstacles.forEach((obs, i) => {
                 obs.x -= obs.speed;
-                // Collision
                 const dist = Math.sqrt((d.x-obs.x)**2 + (d.y-obs.y)**2);
                 if (dist < d.size + obs.size * 0.4) die();
                 if (obs.x < -100) {
@@ -359,13 +385,15 @@
             document.getElementById('altitude').innerText = Math.floor((600 - d.y) / 5);
         }
 
-        function die() {
+        async function die() {
             gameState.running = false;
             document.getElementById('gameOver').style.display = 'flex';
             document.getElementById('finalScore').innerText = gameState.score;
             if (isMultiplayer && user) {
-                const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`, user.uid);
-                deleteDoc(playerDoc);
+                try {
+                    const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', `rooms_${roomCode}`, user.uid);
+                    await deleteDoc(playerDoc);
+                } catch (e) {}
             }
         }
 
@@ -374,7 +402,6 @@
             ctx.translate(x, y);
             ctx.rotate(vy * 0.05);
             
-            // Arms
             ctx.strokeStyle = color;
             ctx.lineWidth = 3;
             ctx.shadowBlur = 10;
@@ -384,7 +411,6 @@
             ctx.moveTo(15, -15); ctx.lineTo(-15, 15);
             ctx.stroke();
 
-            // Props
             const propAngle = Date.now() * 0.2;
             [[-15,-15],[15,-15],[-15,15],[15,15]].forEach(([px, py]) => {
                 ctx.save();
@@ -397,7 +423,6 @@
                 ctx.restore();
             });
 
-            // Body
             ctx.fillStyle = "#111";
             ctx.fillRect(-5, -8, 10, 16);
             ctx.strokeRect(-5, -8, 10, 16);
@@ -406,7 +431,8 @@
                 ctx.rotate(-vy * 0.05);
                 ctx.fillStyle = color;
                 ctx.font = "10px monospace";
-                ctx.fillText(label, -20, -25);
+                ctx.textAlign = "center";
+                ctx.fillText(label, 0, -25);
             }
             ctx.restore();
         }
@@ -415,11 +441,9 @@
             ctx.fillStyle = "#020617";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Dust
             ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
             gameState.dust.forEach(p => ctx.fillRect(p.x, p.y, p.z, p.z));
 
-            // Obstacles
             gameState.obstacles.forEach(obs => {
                 ctx.strokeStyle = `hsl(${obs.hue}, 100%, 50%)`;
                 ctx.lineWidth = 2;
@@ -428,13 +452,11 @@
                 ctx.strokeRect(obs.x - obs.size/2, obs.y - obs.size/2, obs.size, obs.size);
             });
 
-            // Local Drone
-            drawDrone(gameState.drone.x, gameState.drone.y, gameState.drone.vy, gameState.drone.thrust, gameState.drone.color, "YOU");
+            drawDrone(gameState.drone.x, gameState.drone.y, gameState.drone.vy, gameState.drone.thrust, gameState.drone.color, "אתה");
 
-            // Other Players
             Object.keys(otherPlayers).forEach(id => {
                 const p = otherPlayers[id];
-                drawDrone(p.x, p.y, p.vy, p.thrust, p.color, id.substring(0, 4));
+                drawDrone(p.x, p.y, p.vy, p.thrust, p.color, "שחקן " + id.substring(0, 3));
             });
         }
 
@@ -443,7 +465,6 @@
             draw();
             if (gameState.running) requestAnimationFrame(loop);
         }
-
     </script>
 </body>
 </html>
